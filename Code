@@ -1,0 +1,210 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Linq;
+class Solution {
+    
+    public struct suffix
+        {
+        public int index;
+        public int[] rank;
+        public suffix(int n)
+            {
+            index =0;
+            rank = new int[n];
+        }
+    }
+    
+    static suffix[] SortSuffix(suffix[] unsorted)
+        {
+        //suffix[] sorted = new suffix[unsorted.Length];
+        
+        var sorted = 
+            from s in unsorted
+            orderby s.rank[0], s.rank[1]
+            select s;
+        
+        return sorted.ToArray();
+    }
+    
+    static int[] SuffixArray(string text)
+        {
+        int n = text.Length;
+        if(n>10)
+            Console.Error.WriteLine(n>10);
+        suffix[] suffixArr = new suffix[n];
+        
+        // create suffix, assign index and ranks for first two char, and add to suffArr
+        for(int i = 0;i<n;i++)
+            {
+            suffix s = new suffix(2);
+            s.index = i;
+            s.rank[0] = (int)text[i]- (int)'A';
+            s.rank[1] = ((i+1<n)?((int)text[i+1]- (int)'A'):-1);
+            suffixArr[i] = s;
+            //Console.Error.WriteLine("s.index={0} srank[0]={1} srank[1]={2} suffix={3}",s.index,s.rank[0],s.rank[1],text.Substring(i));
+        }
+        
+            
+        //sort suffArr based on first two letters
+        suffixArr = SortSuffix(suffixArr);        
+        int[] indArr = new int[n];
+        //assign ranks for next 2x letters        
+        for(int x = 4; x<2*n; x*=2)
+            {
+            //store previous first rank, make first rank of first suffix = 0
+            int rank = 0;            
+            int previousRank = suffixArr[0].rank[0];
+            suffixArr[0].rank[0]=rank;
+            indArr[suffixArr[0].index] = 0;
+            
+            //if both ranks are equal to previous ranks, then keep first rank the same, else increment by 1
+            for(int i = 1; i<n;i++)
+                {      
+                if(suffixArr[i].rank[0]==previousRank 
+                   && suffixArr[i].rank[1]==suffixArr[i-1].rank[1])
+                    {
+                    previousRank = suffixArr[i].rank[0];
+                    suffixArr[i].rank[0] =rank;
+                }
+                else
+                    {
+                    previousRank = suffixArr[i].rank[0];
+                    suffixArr[i].rank[0] =++rank;  
+                }
+            
+                indArr[suffixArr[i].index]=i;                
+            }
+            
+            //rank[1] = current rank of suffix[i+2]
+            for(int i=0;i<n;i++)
+                {
+                int nextIndex = suffixArr[i].index +x/2;                
+                suffixArr[i].rank[1] = ((nextIndex<n)? (suffixArr[indArr[nextIndex]].rank[0]):-1);
+            }
+            
+            suffixArr = SortSuffix(suffixArr);            
+        }
+        int[] arr = new int[n];
+        for(int i=0;i<suffixArr.Length;i++)
+            arr[i]=suffixArr[i].index;
+            
+        return arr;
+    }
+    static void Main(String[] args) {
+        /* Enter your code here. Read input from STDIN. Print output to STDOUT. Your class should be named Solution */
+        
+        int n = Convert.ToInt32(Console.ReadLine());
+        
+        //process each pair
+        for(int i=0;i<n;i++)
+            {
+            string a = Console.ReadLine();
+            string b=Console.ReadLine();
+            StringBuilder sb = new StringBuilder();
+            
+            int aIndex=0;
+            int bIndex=0;
+            //Console.Error.WriteLine("alength={0} blength={1}",a.Length,b.Length);
+            
+            //compare letters and add lowest
+            while(aIndex < a.Length && bIndex<b.Length)
+                {
+                if(a[aIndex]<b[bIndex])
+                    {
+                    sb.Append(a[aIndex]);
+                    aIndex++;
+                }
+                else if(b[bIndex]<a[aIndex])
+                    {
+                    sb.Append(b[bIndex]);
+                    bIndex++;
+                }
+                else if(a[aIndex]==b[bIndex])
+                    {                    
+                    //find count till a!=b
+                    int count = 0;
+                    char indexChar=' ';
+                    while(true)
+                        {                        
+                        count++;                        
+                        //break if last letter in either string
+                        if(aIndex+count == a.Length || bIndex+count==b.Length)
+                            break;   
+                        if(a[aIndex+count]!=b[bIndex+count])
+                            {
+                            indexChar = ((a[aIndex+count]<b[bIndex+count])? a[aIndex+count]:b[bIndex+count]);
+                            break;
+                        }
+                    }
+                    
+                    //createSubstring of a/bIndex +count, then create Suffix array
+                    string sub = a.Substring(aIndex,count);
+                    //Console.Error.WriteLine("aIndex={0} bIndex={1} count={2} sub={3} indexChar={4}",aIndex,bIndex,count,sub,indexChar);
+                    int[] suffArr = SuffixArray(sub);                      
+                    
+                    //add to sb for lower suffix, define suffA as default
+                    int suffA = 0;
+                    int suffB = 0;
+                    
+                    while(suffA<sub.Length)
+                        {
+                        if(suffA == suffB)
+                            {
+                            sb.Append(sub[suffA]);                            
+                            suffA++;
+                        }
+                        else if(Array.IndexOf(suffArr, suffA)<Array.IndexOf(suffArr,suffB))
+                            {
+                            sb.Append(sub[suffA]);
+                            suffA++;
+                        }
+                        else
+                            {
+                            sb.Append(sub[suffB]);
+                            suffB++;
+                        }
+                    }
+                    //advance a/bIndex 1) if suffA/B is end of a/b indexChar ==' ' 
+                    //2) else find indexChar on a/b and advance index                   
+                    if(indexChar == ' ')
+                        {
+                        if(b.Length-bIndex<a.Length-aIndex)
+                            {
+                            bIndex+=count;
+                            aIndex+=suffB;
+                        }
+                        else
+                            {
+                            bIndex+=suffB;
+                            aIndex+=count;
+                        }                        
+                    }
+                    else
+                        {
+                        if(a[aIndex+count]==indexChar)
+                            {                            
+                            bIndex+=suffB;
+                            aIndex+=count;
+                        }
+                        else
+                            {
+                            bIndex+=count;
+                            aIndex+=suffB;
+                        }
+                    }
+                }
+                else
+                    {
+                    sb.Append(a[aIndex]);
+                    aIndex++;
+                }
+            }
+            //add leftover
+            sb.Append(((b.Length-bIndex)>(a.Length-aIndex))? b.Substring(bIndex):a.Substring(aIndex));
+            
+            Console.WriteLine(sb.ToString());            
+        }
+    }
+}
